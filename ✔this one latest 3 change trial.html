@@ -436,7 +436,7 @@ if(type === 'spiral'){
     baroque:[[0,h,w,0]],
     golden:[[w*0.618,0,w*0.618,h],[0,h*0.618,w,h*0.618]],
     // disabled to check correct dynamic:[[0,0,w,h],[0,h/2,w/2,0]],
-    dynamicdynamic dunno right: (() => {
+    dynamicdynamicdunno : (() => {
   const phi = (1 + Math.sqrt(5)) / 2;
 
   const x1 = w / phi;        // ≈ 0.618w
@@ -566,7 +566,7 @@ gridTool.onclick = () => {
     <div class='option' onclick="setGrid('baroque')">Baroque Diagonal</div>
     <div class='option' onclick="setGrid('golden')">Golden Section</div>
     <div class='option' onclick="setGrid('dynamic')">Dynamic Armature</div>
-    <div class='option' onclick="setGrid('dynamic dunno right')">Dynamic Armature</div>
+    <div class='option' onclick="setGrid('dynamicdunno')">Dynamic Armature1</div>
     <div class='option' onclick="setGrid('modular8')">Modular 8×8</div>
     <div class='option' onclick="setGrid('spiral')">Golden Spiral</div>
 
