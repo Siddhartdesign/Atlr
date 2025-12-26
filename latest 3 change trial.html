@@ -319,7 +319,13 @@ function draw(c = ctx){
     }
     return null;
   }
-  function pos(e){ const r=canvas.getBoundingClientRect(); return {x:e.clientX-r.left,y:e.clientY-r.top}; }
+  function pos(e){ 
+    const r=canvas.getBoundingClientRect(); 
+    return {x:e.clientX-r.left,y:e.clientY-r.top};
+  }
+function clear(){
+  lines = [];
+}
 
   return { init, activate, deactivate, draw, clear };
 })();
@@ -556,6 +562,8 @@ imageInput.onchange = e => {
   const img = new Image();
   img.onload = () => {
   importedImage = img;
+  fitMode = 'fit';
+  fitFillBtn.lastChild.textContent = ' Fit';
   updateClearVisibility();
   requestDraw();
 };
@@ -569,6 +577,7 @@ clearBtn.onclick = () => {
   state.grid = null;
   state.harmonic = null;
   AngleSlantedTool.deactivate();
+  AngleSlantedTool.clear();
   updateClearVisibility();
   requestDraw();
 };
@@ -587,8 +596,10 @@ resetBtn.onclick = () => {
   state.grid = null;
   state.harmonic = null;
   AngleSlantedTool.deactivate();
+  AngleSlantedTool.clear();
   requestDraw();
 };
+
   //fit and fill
 fitFillBtn.onclick = () => {
   fitMode = fitMode === 'fit' ? 'fill' : 'fit';
@@ -602,14 +613,11 @@ downloadBtn.onclick = () => {
   out.height = canvas.height;
   const octx = out.getContext('2d');
 
-  // draw camera frame
+  // base
   octx.drawImage(video, 0, 0, out.width, out.height);
 
-  // draw imported image if any
-  if(importedImage){
-    octx.drawImage(importedImage, 0, 0, out.width, out.height);
-      drawToContext(octx);
-  }
+  // overlays (image + grids + angles)
+  drawToContext(octx);
 
   const a = document.createElement('a');
   a.href = out.toDataURL('image/png');
@@ -618,6 +626,7 @@ downloadBtn.onclick = () => {
 
   saveOverlay.style.display = 'none';
 };
+
 
 renderLoop();
 
