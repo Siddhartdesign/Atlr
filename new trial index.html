@@ -100,11 +100,90 @@ canvas{
   .toolbar{grid-template-columns:1fr;width:120px;height:100vh;border-top:none;border-left:1px solid #222}
   .panel{left:auto;right:0;width:280px;border-left:1px solid #222}
 }
+  .topbar{
+  position:absolute;
+  top:8px;
+  left:8px;
+  display:flex;
+  gap:6px;
+  z-index:10;
+}
+.topbtn{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  font-size:12px;
+  background:var(--panel-soft);
+  color:var(--ink);
+  border:none;
+  border-radius:10px;
+  cursor:pointer;
+}
+.topbtn svg{
+  width:16px;height:16px;
+}
+
+.saveOverlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.6);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:50;
+}
+.saveBox{
+  background:var(--panel);
+  padding:18px;
+  border-radius:14px;
+  min-width:220px;
+  position:relative;
+  text-align:center;
+}
+.closeSave{
+  position:absolute;
+  top:8px;
+  right:10px;
+  background:none;
+  border:none;
+  color:var(--muted);
+  font-size:16px;
+  cursor:pointer;
+}
+.saveAction{
+  margin-top:12px;
+  padding:10px;
+  width:100%;
+  background:var(--accent);
+  color:#000;
+  border:none;
+  border-radius:10px;
+  cursor:pointer;
+  font-weight:600;
+}
+
 </style>
 </head>
 
 <body>
 <header>Sid's Atelier</header>
+<div class="topbar">
+  <button id="importBtn" class="topbtn">
+    <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l4-4m-4 4l-4-4M4 17v2h16v-2" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+    Import
+  </button>
+  <button id="saveBtn" class="topbtn">
+    <svg viewBox="0 0 24 24"><path d="M5 3h12l4 4v14H5zM9 21v-6h6v6M9 3v6h6V3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+    Save
+  </button>
+  <button id="clearBtn" class="topbtn">
+    <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6v14m8-14v14M5 6l1 14h12l1-14M9 6V4h6v2" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+    Clear
+  </button>
+</div>
+
+<input type="file" id="imageInput" accept="image/*" hidden>
 
 <div class="stage" id="stage">
   <video id="camera" autoplay playsinline></video>
@@ -118,6 +197,13 @@ canvas{
   <div class="tool" id="gridTool">Grid</div>
   <div class="tool" id="harmonicTool">Ratio</div>
   <div class="tool" id="angleTool">Block-in</div>
+</div>
+  <div class="saveOverlay" id="saveOverlay">
+  <div class="saveBox">
+    <button class="closeSave" id="closeSave">✕</button>
+    <h4>Save Image</h4>
+    <button id="downloadBtn" class="saveAction">Download</button>
+  </div>
 </div>
 
 <script>
@@ -176,30 +262,45 @@ const AngleSlantedTool = (() => {
     lastPos = p; requestDraw();
   }
   function onUp(){ dragPart=null; }
+function draw(c = ctx){
+  if(!active) return;
 
-  function draw(){
-    if(!active) return;
-    lines.forEach(ln=>{
-      const sel = ln===selected;
-      if(sel){
-        ctx.save();
-        ctx.strokeStyle='rgba(0,180,255,0.25)';
-        ctx.lineWidth=10; ctx.lineCap='round';
-        ctx.beginPath(); ctx.moveTo(ln.x1,ln.y1); ctx.lineTo(ln.x2,ln.y2); ctx.stroke();
-        ctx.restore();
-      }
-      ctx.strokeStyle = sel ? 'rgba(0,200,255,1)' : 'rgba(255,255,255,0.9)';
-      ctx.lineWidth=3;
-      ctx.beginPath(); ctx.moveTo(ln.x1,ln.y1); ctx.lineTo(ln.x2,ln.y2); ctx.stroke();
-      ctx.fillStyle='#fff';
-      ctx.beginPath(); ctx.arc(ln.x1,ln.y1,6,0,Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(ln.x2,ln.y2,6,0,Math.PI*2); ctx.fill();
-      const ang = (Math.atan2(ln.y1-ln.y2, ln.x2-ln.x1)*180/Math.PI).toFixed(1);
-      ctx.fillStyle='rgba(255,255,255,0.85)';
-      ctx.font='12px system-ui';
-      ctx.fillText(`${ang}°`, ln.x2+8, ln.y2-8);
-    });
-  }
+  lines.forEach(ln=>{
+    const sel = ln === selected;
+
+    if(sel){
+      c.save();
+      c.strokeStyle = 'rgba(0,180,255,0.25)';
+      c.lineWidth = 10;
+      c.lineCap = 'round';
+      c.beginPath();
+      c.moveTo(ln.x1, ln.y1);
+      c.lineTo(ln.x2, ln.y2);
+      c.stroke();
+      c.restore();
+    }
+
+    c.strokeStyle = sel ? 'rgba(0,200,255,1)' : 'rgba(255,255,255,0.9)';
+    c.lineWidth = 3;
+    c.beginPath();
+    c.moveTo(ln.x1, ln.y1);
+    c.lineTo(ln.x2, ln.y2);
+    c.stroke();
+
+    c.fillStyle = '#fff';
+    c.beginPath();
+    c.arc(ln.x1, ln.y1, 6, 0, Math.PI * 2);
+    c.fill();
+    c.beginPath();
+    c.arc(ln.x2, ln.y2, 6, 0, Math.PI * 2);
+    c.fill();
+
+    const ang = (Math.atan2(ln.y1 - ln.y2, ln.x2 - ln.x1) * 180 / Math.PI).toFixed(1);
+    c.fillStyle = 'rgba(255,255,255,0.85)';
+    c.font = '12px system-ui';
+    c.fillText(`${ang}°`, ln.x2 + 8, ln.y2 - 8);
+  });
+}
 
   function hitTest(x,y){
     for(let i=lines.length-1;i>=0;i--){
@@ -240,21 +341,32 @@ video.addEventListener('loadedmetadata',resize);
 window.addEventListener('resize',resize);
 
 function draw(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  if(state.grid) drawGrid(state.grid);
-  if(state.harmonic) drawHarmonic(state.harmonic);
-  AngleSlantedTool.draw();
+  drawToContext(ctx);
+}
+
+function drawToContext(c){
+  c.clearRect(0,0,canvas.width,canvas.height);
+
+  if(importedImage){
+    c.drawImage(importedImage, 0, 0, canvas.width, canvas.height);
+  }
+
+  if(state.grid) drawGrid(state.grid, c);
+  if(state.harmonic) drawHarmonic(state.harmonic, c);
+  AngleSlantedTool.draw(c);
 }
 
 /* =====================================================
    GRID DRAWING (EXPANDED ONLY)
    ===================================================== */
-function drawGrid(type){
-  const w=canvas.width,h=canvas.height;
-  ctx.strokeStyle='rgba(255,255,255,0.35)';
-  ctx.lineWidth=1.4;
+function drawGrid(type, c = ctx){
+  const w = canvas.width;
+  const h = canvas.height;
 
-  const sets={
+  c.strokeStyle = 'rgba(255,255,255,0.35)';
+  c.lineWidth = 1.4;
+
+  const sets = {
     center:[[w/2,0,w/2,h],[0,h/2,w,h/2]],
     thirds:[[w/3,0,w/3,h],[2*w/3,0,2*w/3,h],[0,h/3,w,h/3],[0,2*h/3,w,2*h/3]],
     four:[...Array(3)].flatMap((_,i)=>[[ (i+1)*w/4,0,(i+1)*w/4,h ],[0,(i+1)*h/4,w,(i+1)*h/4]]),
@@ -266,23 +378,27 @@ function drawGrid(type){
   }[type];
 
   if(!sets) return;
+
   sets.forEach(l=>{
-    ctx.beginPath();
-    ctx.moveTo(l[0],l[1]);
-    ctx.lineTo(l[2],l[3]);
-    ctx.stroke();
+    c.beginPath();
+    c.moveTo(l[0], l[1]);
+    c.lineTo(l[2], l[3]);
+    c.stroke();
   });
 }
+
 
 /* =====================================================
    HARMONIC DRAWING (EXPANDED ONLY)
    ===================================================== */
-function drawHarmonic(type){
-  const w=canvas.width,h=canvas.height;
-  ctx.strokeStyle='rgba(125,211,252,0.5)';
-  ctx.lineWidth=2.2;
+function drawHarmonic(type, c = ctx){
+  const w = canvas.width;
+  const h = canvas.height;
 
-  const r={
+  c.strokeStyle = 'rgba(125,211,252,0.5)';
+  c.lineWidth = 2.2;
+
+  const r = {
     '1:2':[0.5],
     '2:3':[2/3],
     '3:4':[3/4],
@@ -295,13 +411,15 @@ function drawHarmonic(type){
   }[type];
 
   if(!r) return;
+
   r.forEach(x=>{
-    ctx.beginPath();
-    ctx.moveTo(w*x,0);
-    ctx.lineTo(w*x,h);
-    ctx.stroke();
+    c.beginPath();
+    c.moveTo(w * x, 0);
+    c.lineTo(w * x, h);
+    c.stroke();
   });
 }
+
 
 /* =====================================================
    UI
@@ -382,6 +500,70 @@ window.setHarmonic = t => {
   closePanel();
   requestDraw();
 };
+const importBtn = document.getElementById('importBtn');
+const saveBtn = document.getElementById('saveBtn');
+const clearBtn = document.getElementById('clearBtn');
+const imageInput = document.getElementById('imageInput');
+
+const saveOverlay = document.getElementById('saveOverlay');
+const closeSave = document.getElementById('closeSave');
+const downloadBtn = document.getElementById('downloadBtn');
+
+let importedImage = null;
+
+// IMPORT
+importBtn.onclick = () => imageInput.click();
+
+imageInput.onchange = e => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const img = new Image();
+  img.onload = () => {
+    importedImage = img;
+    requestDraw();
+  };
+  img.src = URL.createObjectURL(file);
+};
+
+// CLEAR
+clearBtn.onclick = () => {
+  importedImage = null;
+  requestDraw();
+};
+
+// SAVE
+saveBtn.onclick = () => {
+  saveOverlay.style.display = 'flex';
+};
+
+closeSave.onclick = () => {
+  saveOverlay.style.display = 'none';
+};
+
+downloadBtn.onclick = () => {
+  const out = document.createElement('canvas');
+  out.width = canvas.width;
+  out.height = canvas.height;
+  const octx = out.getContext('2d');
+
+  // draw camera frame
+  octx.drawImage(video, 0, 0, out.width, out.height);
+
+  // draw imported image if any
+  if(importedImage){
+    octx.drawImage(importedImage, 0, 0, out.width, out.height);
+  }
+
+  // draw overlays
+  drawToContext(octx);
+
+  const a = document.createElement('a');
+  a.href = out.toDataURL('image/png');
+  a.download = 'atelier.png';
+  a.click();
+
+  saveOverlay.style.display = 'none';
+};
 
 renderLoop();
 
@@ -389,5 +571,6 @@ renderLoop();
   navigator.serviceWorker.register("./service-worker.js");
 }
 </script>
+
 </body>
 </html>
