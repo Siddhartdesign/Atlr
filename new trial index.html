@@ -345,8 +345,6 @@ function draw(){
 }
 
 function drawToContext(c){
-  c.clearRect(0,0,canvas.width,canvas.height);
-
   if(importedImage){
     c.drawImage(importedImage, 0, 0, canvas.width, canvas.height);
   }
