@@ -1,0 +1,393 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+<title>Atelier — Viewfinder for Artists</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root{
+  --bg:#0b0c0e;
+  --panel:#15171b;
+  --panel-soft:#1f2228;
+  --ink:#f4f6f8;
+  --muted:#9aa0a6;
+  --accent:#7dd3fc;
+  --line:rgba(255,255,255,.38);
+  --harmonic:rgba(125,211,252,.5);
+  --radius:14px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,Inter,system-ui,sans-serif;
+  height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+header{
+  padding:10px 14px;
+  text-align:center;
+  font-weight:600;
+  border-bottom:1px solid #222;
+}
+.stage{
+  position:relative;
+  flex:1;
+  background:black;
+  overflow:hidden;
+}
+video{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+canvas{
+  position:absolute;
+  inset:0;
+  touch-action: none; 
+}
+.toolbar{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+  padding:10px;
+  background:var(--panel);
+  border-top:1px solid #222;
+}
+.tool{
+  background:var(--panel-soft);
+  border-radius:var(--radius);
+  padding:10px 6px;
+  font-size:12px;
+  text-align:center;
+  color:var(--muted);
+  cursor:pointer;
+  user-select:none;
+}
+.tool.active{color:var(--accent);background:#24303a}
+.panel{
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:72px;        /* ⬅️ RESERVES TOOLBAR SPACE */
+  max-height:50vh;    /* ⬅️ PREVENTS PANEL FROM TAKING OVER */
+  background:var(--panel);
+  border-top:1px solid #222;
+  padding:12px;
+  display:none;
+  overflow-y:auto;
+}
+
+.panel h4{margin:0 0 10px;font-size:13px;color:var(--muted)}
+.option{
+  padding:9px;
+  border-radius:10px;
+  background:var(--panel-soft);
+  margin-bottom:8px;
+  font-size:13px;
+  cursor:pointer;
+}
+@media(min-width:768px){
+  body{flex-direction:row}
+  header{writing-mode:vertical-rl;transform:rotate(180deg)}
+  .toolbar{grid-template-columns:1fr;width:120px;height:100vh;border-top:none;border-left:1px solid #222}
+  .panel{left:auto;right:0;width:280px;border-left:1px solid #222}
+}
+</style>
+</head>
+
+<body>
+<header>Sid's Atelier</header>
+
+<div class="stage" id="stage">
+  <video id="camera" autoplay playsinline></video>
+  <canvas id="overlay"></canvas>
+</div>
+
+<div class="panel" id="panel"></div>
+
+<div class="toolbar">
+  <div class="tool" id="flipTool">Flip</div>
+  <div class="tool" id="gridTool">Grid</div>
+  <div class="tool" id="harmonicTool">Ratio</div>
+  <div class="tool" id="angleTool">Block-in</div>
+</div>
+
+<script>
+/* =====================================================
+   RENDER LOOP
+   ===================================================== */
+let needsRedraw = true;
+function requestDraw(){ needsRedraw = true; }
+function renderLoop(){
+  if(needsRedraw){
+    draw();
+    needsRedraw = false;
+  }
+  requestAnimationFrame(renderLoop);
+}
+
+/* =====================================================
+   AngleSlantedTool
+   ===================================================== */
+const AngleSlantedTool = (() => {
+  let ctx, canvas;
+  let lines = [];
+  let active = false;
+  let selected = null;
+  let dragPart = null;
+  let lastPos = { x: 0, y: 0 };
+
+  function init(_canvas, _ctx) {
+    canvas = _canvas;
+    ctx = _ctx;
+    canvas.addEventListener('pointerdown', onDown);
+    canvas.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }
+  function activate(){ active = true; requestDraw(); }
+  function deactivate(){ active = false; selected = null; requestDraw(); }
+
+  function onDown(e){
+    if(!active) return;
+    const p = pos(e); lastPos = p;
+    const hit = hitTest(p.x,p.y);
+    if(hit){ selected = hit.line; dragPart = hit.part; return; }
+    const ln = { x1:p.x, y1:p.y, x2:p.x+120, y2:p.y+40 };
+    lines.push(ln); selected = ln; dragPart = 'p2'; requestDraw();
+  }
+  function onMove(e){
+    if(!active || !selected) return;
+    const p = pos(e);
+    const dx = p.x-lastPos.x, dy = p.y-lastPos.y;
+    if(dragPart==='p1'){ selected.x1=p.x; selected.y1=p.y; }
+    else if(dragPart==='p2'){ selected.x2=p.x; selected.y2=p.y; }
+    else if(dragPart==='body'){
+      selected.x1+=dx; selected.y1+=dy;
+      selected.x2+=dx; selected.y2+=dy;
+    }
+    lastPos = p; requestDraw();
+  }
+  function onUp(){ dragPart=null; }
+
+  function draw(){
+    if(!active) return;
+    lines.forEach(ln=>{
+      const sel = ln===selected;
+      if(sel){
+        ctx.save();
+        ctx.strokeStyle='rgba(0,180,255,0.25)';
+        ctx.lineWidth=10; ctx.lineCap='round';
+        ctx.beginPath(); ctx.moveTo(ln.x1,ln.y1); ctx.lineTo(ln.x2,ln.y2); ctx.stroke();
+        ctx.restore();
+      }
+      ctx.strokeStyle = sel ? 'rgba(0,200,255,1)' : 'rgba(255,255,255,0.9)';
+      ctx.lineWidth=3;
+      ctx.beginPath(); ctx.moveTo(ln.x1,ln.y1); ctx.lineTo(ln.x2,ln.y2); ctx.stroke();
+      ctx.fillStyle='#fff';
+      ctx.beginPath(); ctx.arc(ln.x1,ln.y1,6,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(ln.x2,ln.y2,6,0,Math.PI*2); ctx.fill();
+      const ang = (Math.atan2(ln.y1-ln.y2, ln.x2-ln.x1)*180/Math.PI).toFixed(1);
+      ctx.fillStyle='rgba(255,255,255,0.85)';
+      ctx.font='12px system-ui';
+      ctx.fillText(`${ang}°`, ln.x2+8, ln.y2-8);
+    });
+  }
+
+  function hitTest(x,y){
+    for(let i=lines.length-1;i>=0;i--){
+      const ln=lines[i];
+      if(Math.hypot(x-ln.x1,y-ln.y1)<12) return {line:ln,part:'p1'};
+      if(Math.hypot(x-ln.x2,y-ln.y2)<12) return {line:ln,part:'p2'};
+    }
+    return null;
+  }
+  function pos(e){ const r=canvas.getBoundingClientRect(); return {x:e.clientX-r.left,y:e.clientY-r.top}; }
+
+  return { init, activate, deactivate, draw };
+})();
+
+/* =====================================================
+   APP STATE
+   ===================================================== */
+const state={ flip:false, grid:null, harmonic:null };
+const video=document.getElementById('camera');
+const canvas=document.getElementById('overlay');
+const ctx=canvas.getContext('2d');
+const panel=document.getElementById('panel');
+const stage=document.getElementById('stage');
+
+AngleSlantedTool.init(canvas,ctx);
+
+(async()=>{
+  const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}});
+  video.srcObject=stream;
+})();
+
+function resize(){
+  canvas.width=stage.clientWidth;
+  canvas.height=stage.clientHeight;
+  requestDraw();
+}
+video.addEventListener('loadedmetadata',resize);
+window.addEventListener('resize',resize);
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(state.grid) drawGrid(state.grid);
+  if(state.harmonic) drawHarmonic(state.harmonic);
+  AngleSlantedTool.draw();
+}
+
+/* =====================================================
+   GRID DRAWING (EXPANDED ONLY)
+   ===================================================== */
+function drawGrid(type){
+  const w=canvas.width,h=canvas.height;
+  ctx.strokeStyle='rgba(255,255,255,0.35)';
+  ctx.lineWidth=1.4;
+
+  const sets={
+    center:[[w/2,0,w/2,h],[0,h/2,w,h/2]],
+    thirds:[[w/3,0,w/3,h],[2*w/3,0,2*w/3,h],[0,h/3,w,h/3],[0,2*h/3,w,2*h/3]],
+    four:[...Array(3)].flatMap((_,i)=>[[ (i+1)*w/4,0,(i+1)*w/4,h ],[0,(i+1)*h/4,w,(i+1)*h/4]]),
+    diagonals:[[0,0,w,h],[w,0,0,h]],
+    baroque:[[0,h,w,0]],
+    golden:[[w*0.618,0,w*0.618,h],[0,h*0.618,w,h*0.618]],
+    dynamic:[[0,0,w,h],[0,h/2,w/2,0]],
+    modular8:[...Array(7)].flatMap((_,i)=>[[ (i+1)*w/8,0,(i+1)*w/8,h ],[0,(i+1)*h/8,w,(i+1)*h/8]])
+  }[type];
+
+  if(!sets) return;
+  sets.forEach(l=>{
+    ctx.beginPath();
+    ctx.moveTo(l[0],l[1]);
+    ctx.lineTo(l[2],l[3]);
+    ctx.stroke();
+  });
+}
+
+/* =====================================================
+   HARMONIC DRAWING (EXPANDED ONLY)
+   ===================================================== */
+function drawHarmonic(type){
+  const w=canvas.width,h=canvas.height;
+  ctx.strokeStyle='rgba(125,211,252,0.5)';
+  ctx.lineWidth=2.2;
+
+  const r={
+    '1:2':[0.5],
+    '2:3':[2/3],
+    '3:4':[3/4],
+    '3:6:9':[3/9,6/9],
+    '4:6:9':[4/9,6/9],
+    'sqrt2':[1/Math.SQRT2],
+    'sqrt3':[1/Math.sqrt(3)],
+    'sqrt5':[1/Math.sqrt(5)],
+    'phi':[0.61803398875]
+  }[type];
+
+  if(!r) return;
+  r.forEach(x=>{
+    ctx.beginPath();
+    ctx.moveTo(w*x,0);
+    ctx.lineTo(w*x,h);
+    ctx.stroke();
+  });
+}
+
+/* =====================================================
+   UI
+   ===================================================== */
+let openPanel = null;
+
+function closePanel(){
+  panel.style.display = 'none';
+  openPanel = null;
+}
+
+  
+  
+  flipTool.onclick=()=>{
+  state.flip=!state.flip;
+  video.style.transform=state.flip?'scaleX(-1)':'none';
+  flipTool.classList.toggle('active',state.flip);
+};
+gridTool.onclick = () => {
+  if (openPanel === 'grid') {
+    closePanel();
+    return;
+  }
+
+  panel.innerHTML = `
+    <h4>Grid</h4>
+    <div class='option' onclick="setGrid('center')">Center Axis</div>
+    <div class='option' onclick="setGrid('thirds')">Rule of Thirds</div>
+    <div class='option' onclick="setGrid('four')">Quarter Grid</div>
+    <div class='option' onclick="setGrid('diagonals')">Diagonals</div>
+    <div class='option' onclick="setGrid('baroque')">Baroque Diagonal</div>
+    <div class='option' onclick="setGrid('golden')">Golden Section</div>
+    <div class='option' onclick="setGrid('dynamic')">Dynamic Armature</div>
+    <div class='option' onclick="setGrid('modular8')">Modular 8×8</div>
+  `;
+  panel.style.display = 'block';
+  openPanel = 'grid';
+};
+
+harmonicTool.onclick = () => {
+  if (openPanel === 'harmonic') {
+    closePanel();
+    return;
+  }
+
+  panel.innerHTML = `
+    <h4>Harmonic</h4>
+    <div class='option' onclick="setHarmonic('1:2')">1 : 2</div>
+    <div class='option' onclick="setHarmonic('2:3')">2 : 3</div>
+    <div class='option' onclick="setHarmonic('3:4')">3 : 4</div>
+    <div class='option' onclick="setHarmonic('3:6:9')">3 : 6 : 9</div>
+    <div class='option' onclick="setHarmonic('4:6:9')">4 : 6 : 9</div>
+    <div class='option' onclick="setHarmonic('sqrt2')">√2</div>
+    <div class='option' onclick="setHarmonic('sqrt3')">√3</div>
+    <div class='option' onclick="setHarmonic('sqrt5')">√5</div>
+    <div class='option' onclick="setHarmonic('phi')">Golden Section (φ)</div>
+  `;
+  panel.style.display = 'block';
+  openPanel = 'harmonic';
+};
+
+
+angleTool.onclick=()=>{
+  AngleSlantedTool.activate();
+  angleTool.classList.add('active');
+};
+
+window.setGrid = t => {
+  state.grid = t;
+  state.harmonic = null;
+  closePanel();
+  requestDraw();
+};
+
+window.setHarmonic = t => {
+  state.harmonic = t;
+  state.grid = null;
+  closePanel();
+  requestDraw();
+};
+
+renderLoop();
+
+  if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./service-worker.js");
+}
+</script>
+</body>
+</html>
