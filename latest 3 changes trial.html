@@ -181,6 +181,15 @@ canvas{
     <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6v14m8-14v14M5 6l1 14h12l1-14M9 6V4h6v2" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
     Clear
   </button>
+  <button id="resetBtn" class="topbtn">
+  <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+  Reset
+</button>
+<button id="fitFillBtn" class="topbtn">
+  <svg viewBox="0 0 24 24"><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+  Fit
+</button>
+
 </div>
 
 <input type="file" id="imageInput" accept="image/*" hidden>
@@ -345,9 +354,26 @@ function draw(){
 }
 
 function drawToContext(c){
-  if(importedImage){
-    c.drawImage(importedImage, 0, 0, canvas.width, canvas.height);
+if(importedImage){
+  const cw = canvas.width, ch = canvas.height;
+  const iw = importedImage.width, ih = importedImage.height;
+  const cr = cw / ch, ir = iw / ih;
+
+  let dw, dh, dx, dy;
+
+  if (fitMode === 'fit') {
+    if (ir > cr) { dw = cw; dh = cw / ir; }
+    else { dh = ch; dw = ch * ir; }
+  } else {
+    if (ir > cr) { dh = ch; dw = ch * ir; }
+    else { dw = cw; dh = cw / ir; }
   }
+
+  dx = (cw - dw) / 2;
+  dy = (ch - dh) / 2;
+  c.drawImage(importedImage, dx, dy, dw, dh);
+}
+
 
   if(state.grid) drawGrid(state.grid, c);
   if(state.harmonic) drawHarmonic(state.harmonic, c);
@@ -361,7 +387,9 @@ function drawGrid(type, c = ctx){
   const w = canvas.width;
   const h = canvas.height;
 
-  c.strokeStyle = 'rgba(255,255,255,0.35)';
+  c.strokeStyle = importedImage  
+    ? 'rgba(0,0,0,0.35)'  
+    : 'rgba(255,255,255,0.35)';
   c.lineWidth = 1.4;
 
   const sets = {
@@ -393,7 +421,7 @@ function drawHarmonic(type, c = ctx){
   const w = canvas.width;
   const h = canvas.height;
 
-  c.strokeStyle = 'rgba(125,211,252,0.5)';
+  c.strokeStyle = importedImage   ? 'rgba(0,0,0,0.35)'   : 'rgba(255,255,255,0.35)';
   c.lineWidth = 2.2;
 
   const r = {
@@ -506,9 +534,17 @@ const imageInput = document.getElementById('imageInput');
 const saveOverlay = document.getElementById('saveOverlay');
 const closeSave = document.getElementById('closeSave');
 const downloadBtn = document.getElementById('downloadBtn');
+const resetBtn = document.getElementById('resetBtn');
+const fitFillBtn = document.getElementById('fitFillBtn');
+let fitMode = 'fit'; // 'fit' | 'fill'
 
 let importedImage = null;
-
+  
+function updateClearVisibility(){
+  clearBtn.style.display = importedImage ? 'flex' : 'none';
+}
+updateClearVisibility();
+  
 // IMPORT
 importBtn.onclick = () => imageInput.click();
 
@@ -517,17 +553,24 @@ imageInput.onchange = e => {
   if(!file) return;
   const img = new Image();
   img.onload = () => {
-    importedImage = img;
-    requestDraw();
-  };
+  importedImage = img;
+  updateClearVisibility();
+  requestDraw();
+};
+
   img.src = URL.createObjectURL(file);
 };
 
 // CLEAR
 clearBtn.onclick = () => {
   importedImage = null;
+  state.grid = null;
+  state.harmonic = null;
+  AngleSlantedTool.deactivate();
+  updateClearVisibility();
   requestDraw();
 };
+
 
 // SAVE
 saveBtn.onclick = () => {
@@ -536,6 +579,19 @@ saveBtn.onclick = () => {
 
 closeSave.onclick = () => {
   saveOverlay.style.display = 'none';
+};
+  // RESET
+resetBtn.onclick = () => {
+  state.grid = null;
+  state.harmonic = null;
+  AngleSlantedTool.deactivate();
+  requestDraw();
+};
+  //fit and fill
+fitFillBtn.onclick = () => {
+  fitMode = fitMode === 'fit' ? 'fill' : 'fit';
+  fitFillBtn.lastChild.textContent = fitMode === 'fit' ? ' Fit' : ' Fill';
+  requestDraw();
 };
 
 downloadBtn.onclick = () => {
