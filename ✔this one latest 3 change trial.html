@@ -399,6 +399,34 @@ function drawGrid(type, c = ctx){
     ? 'rgba(0,0,0,0.35)'  
     : 'rgba(255,255,255,0.35)';
   c.lineWidth = 1.4;
+if(type === 'spiral'){
+  const w = canvas.width;
+  const h = canvas.height;
+  const phi = (1 + Math.sqrt(5)) / 2;
+
+  let x = 0, y = 0, cw = w, ch = h;
+  c.strokeStyle = importedImage ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.35)';
+  c.lineWidth = 1.6;
+
+  for(let i = 0; i < 5; i++){
+    c.beginPath();
+    c.arc(
+      x + cw, y + ch,
+      Math.min(cw, ch),
+      Math.PI,
+      Math.PI * 1.5
+    );
+    c.stroke();
+
+    const nw = cw / phi;
+    const nh = ch / phi;
+    x += cw - nw;
+    y += ch - nh;
+    cw = nw;
+    ch = nh;
+  }
+  return;
+}
 
   const sets = {
     center:[[w/2,0,w/2,h],[0,h/2,w,h/2]],
@@ -516,6 +544,8 @@ gridTool.onclick = () => {
     <div class='option' onclick="setGrid('baroque')">Baroque Diagonal</div>
     <div class='option' onclick="setGrid('golden')">Golden Section</div>
     <div class='option' onclick="setGrid('dynamic')">Dynamic Armature</div>
+    <div class='option' onclick="setGrid('spiral')">Golden Spiral</div>
+
     <div class='option' onclick="setGrid('modular8')">Modular 8×8</div>
   `;
   panel.style.display = 'block';
