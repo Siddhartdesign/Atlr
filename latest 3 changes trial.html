@@ -321,7 +321,7 @@ function draw(c = ctx){
   }
   function pos(e){ const r=canvas.getBoundingClientRect(); return {x:e.clientX-r.left,y:e.clientY-r.top}; }
 
-  return { init, activate, deactivate, draw };
+  return { init, activate, deactivate, draw, clear };
 })();
 
 /* =====================================================
@@ -350,8 +350,10 @@ video.addEventListener('loadedmetadata',resize);
 window.addEventListener('resize',resize);
 
 function draw(){
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawToContext(ctx);
 }
+
 
 function drawToContext(c){
 if(importedImage){
@@ -606,10 +608,8 @@ downloadBtn.onclick = () => {
   // draw imported image if any
   if(importedImage){
     octx.drawImage(importedImage, 0, 0, out.width, out.height);
+      drawToContext(octx);
   }
-
-  // draw overlays
-  drawToContext(octx);
 
   const a = document.createElement('a');
   a.href = out.toDataURL('image/png');
