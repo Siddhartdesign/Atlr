@@ -400,33 +400,29 @@ function drawGrid(type, c = ctx){
     : 'rgba(255,255,255,0.35)';
   c.lineWidth = 1.4;
 if(type === 'spiral'){
+  const w = canvas.width;
+  const h = canvas.height;
   const phi = (1 + Math.sqrt(5)) / 2;
-  let x = 0, y = 0;
-  let w0 = w, h0 = h;
 
-  c.strokeStyle = importedImage ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.35)';
-  c.lineWidth = 1.6;
+  const size = Math.min(w, h);
+  let x = (w - size) / 2;
+  let y = (h - size) / 2;
+  let s = size;
+
+  c.strokeStyle = importedImage
+    ? 'rgba(0,0,0,0.5)'
+    : 'rgba(255,255,255,0.5)';
+  c.lineWidth = 2;
 
   for(let i = 0; i < 6; i++){
     c.beginPath();
-
-    if(i % 4 === 0){
-      c.arc(x + w0, y + h0, Math.min(w0, h0), Math.PI, Math.PI * 1.5);
-      w0 /= phi;
-    } else if(i % 4 === 1){
-      c.arc(x + w0, y, Math.min(w0, h0), Math.PI * 1.5, Math.PI * 2);
-      h0 /= phi;
-    } else if(i % 4 === 2){
-      c.arc(x, y, Math.min(w0, h0), 0, Math.PI * 0.5);
-      w0 /= phi;
-      x += w0;
-    } else {
-      c.arc(x, y + h0, Math.min(w0, h0), Math.PI * 0.5, Math.PI);
-      h0 /= phi;
-      y += h0;
-    }
-
+    c.arc(x + s, y + s, s, Math.PI, Math.PI * 1.5);
     c.stroke();
+
+    const ns = s / phi;
+    x += s - ns;
+    y += s - ns;
+    s = ns;
   }
   return;
 }
