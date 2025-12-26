@@ -407,7 +407,29 @@ function drawGrid(type, c = ctx){
     diagonals:[[0,0,w,h],[w,0,0,h]],
     baroque:[[0,h,w,0]],
     golden:[[w*0.618,0,w*0.618,h],[0,h*0.618,w,h*0.618]],
-    dynamic:[[0,0,w,h],[0,h/2,w/2,0]],
+    // dynamic:[[0,0,w,h],[0,h/2,w/2,0]],
+    dynamic: [
+  // main diagonals
+  [0, 0, w, h],
+  [w, 0, 0, h],
+
+  // center cross
+  [w/2, 0, w/2, h],
+  [0, h/2, w, h/2],
+
+  // vertical halves diagonals
+  [0, 0, w/2, h],
+  [0, h, w/2, 0],
+  [w, 0, w/2, h],
+  [w, h, w/2, 0],
+
+  // horizontal halves diagonals
+  [0, 0, w, h/2],
+  [w, 0, 0, h/2],
+  [0, h, w, h/2],
+  [w, h, 0, h/2]
+],
+
     modular8:[...Array(7)].flatMap((_,i)=>[[ (i+1)*w/8,0,(i+1)*w/8,h ],[0,(i+1)*h/8,w,(i+1)*h/8]])
   }[type];
 
