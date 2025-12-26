@@ -399,34 +399,6 @@ function drawGrid(type, c = ctx){
     ? 'rgba(0,0,0,0.35)'  
     : 'rgba(255,255,255,0.35)';
   c.lineWidth = 1.4;
-if(type === 'spiral'){
-  const w = canvas.width;
-  const h = canvas.height;
-  const phi = (1 + Math.sqrt(5)) / 2;
-
-  let x = 0, y = 0, cw = w, ch = h;
-  c.strokeStyle = importedImage ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.35)';
-  c.lineWidth = 1.6;
-
-  for(let i = 0; i < 5; i++){
-    c.beginPath();
-    c.arc(
-      x + cw, y + ch,
-      Math.min(cw, ch),
-      Math.PI,
-      Math.PI * 1.5
-    );
-    c.stroke();
-
-    const nw = cw / phi;
-    const nh = ch / phi;
-    x += cw - nw;
-    y += ch - nh;
-    cw = nw;
-    ch = nh;
-  }
-  return;
-}
 
   const sets = {
     center:[[w/2,0,w/2,h],[0,h/2,w,h/2]],
@@ -436,27 +408,34 @@ if(type === 'spiral'){
     baroque:[[0,h,w,0]],
     golden:[[w*0.618,0,w*0.618,h],[0,h*0.618,w,h*0.618]],
     // disabled to check correct dynamic:[[0,0,w,h],[0,h/2,w/2,0]],
-    dynamic: [
-  // main diagonals
-  [0, 0, w, h],
-  [w, 0, 0, h],
+   dynamic: (() => {
+  const phi = (1 + Math.sqrt(5)) / 2;
 
-  // center cross
-  [w/2, 0, w/2, h],
-  [0, h/2, w, h/2],
+  const x1 = w / phi;
+  const x2 = w - x1;
+  const y1 = h / phi;
+  const y2 = h - y1;
 
-  // vertical halves diagonals
-  [0, 0, w/2, h],
-  [0, h, w/2, 0],
-  [w, 0, w/2, h],
-  [w, h, w/2, 0],
+  return [
+    // main diagonals
+    [0, 0, w, h],
+    [0, h, w, 0],
 
-  // horizontal halves diagonals
-  [0, 0, w, h/2],
-  [w, 0, 0, h/2],
-  [0, h, w, h/2],
-  [w, h, 0, h/2]
-],
+    // reciprocal diagonals
+    [0, h, x1, 0],
+    [w, h, x2, 0],
+    [0, 0, x1, h],
+    [w, 0, x2, h],
+
+    // vertical divisions
+    [x1, 0, x1, h],
+    [x2, 0, x2, h],
+
+    // horizontal divisions
+    [0, y2, w, y2],
+    [0, y1, w, y1],
+  ];
+})(),
 
     modular8:[...Array(7)].flatMap((_,i)=>[[ (i+1)*w/8,0,(i+1)*w/8,h ],[0,(i+1)*h/8,w,(i+1)*h/8]])
   }[type];
@@ -537,10 +516,7 @@ gridTool.onclick = () => {
     <div class='option' onclick="setGrid('baroque')">Baroque Diagonal</div>
     <div class='option' onclick="setGrid('golden')">Golden Section</div>
     <div class='option' onclick="setGrid('dynamic')">Dynamic Armature</div>
- 
     <div class='option' onclick="setGrid('modular8')">Modular 8×8</div>
-    <div class='option' onclick="setGrid('spiral')">Golden Spiral</div>
-
   `;
   panel.style.display = 'block';
   openPanel = 'grid';
