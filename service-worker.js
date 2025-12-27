@@ -1,4 +1,4 @@
-const CACHE_NAME = "atelier-tools-cache-v1";
+const CACHE_NAME = "atelier-tools-cache-v2";
 
 const ASSETS = [
   "./",
